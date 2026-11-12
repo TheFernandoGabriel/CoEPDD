@@ -1,0 +1,289 @@
+# PDD — Process Definition Document
+
+**Versão:** 0.1 — Rascunho para validação  
+**Origem:** Workflow n8n — "Simulacao CoE - Fluxo para revisao"  
+**Status:** Pendente de validação com o demandante
+
+**Legenda:**
+- **FATO:** Informação identificável diretamente no fluxo.
+- **[A CONFIRMAR]:** Interpretação ou informação que depende de validação.
+- **Não identificável no fluxo:** Informação ausente no JSON exportado.
+
+---
+
+## 1. Identificação
+
+**Nome provável do processo:** Consulta de associados ativos e envio de registros para API.
+
+**Área responsável:** Não identificável no fluxo.
+
+**Área possivelmente envolvida:** Cadastro, operações ou relacionamento com associados. [A CONFIRMAR]
+
+**Responsável pelo processo:** Não identificável no fluxo.
+
+**Sistemas envolvidos:**
+- n8n — ferramenta de orquestração da automação.
+- API da cooperativa — consulta de associados e envio de registros.
+- Banco de dados identificado na configuração como `coop`, com servidor `10.0.0.9`. O uso efetivo desse banco não é demonstrado no fluxo.
+
+## 2. Objetivo e justificativa
+
+**Objetivo provável:**
+
+Consultar os associados com status ativo em uma API e enviar informações relacionadas a cada associado para outro endpoint, responsável pelo recebimento de registros.
+
+[A CONFIRMAR] O objetivo de negócio pode ser automatizar a geração, atualização ou integração de registros de associados. O significado exato da operação não está identificado.
+
+**Justificativa:**
+
+[A CONFIRMAR] A automação pode reduzir atividades manuais de consulta e lançamento de registros, além de padronizar a transferência de informações entre sistemas.
+
+**Problema operacional que motivou a automação:** Não identificável no fluxo.
+
+## 3. Processo atual — passo a passo
+
+O fluxo apresenta cinco etapas funcionais/técnicas conectadas sequencialmente.
+
+### Etapa 1 — Disparo da automação
+
+**FATO:**
+- O fluxo começa com um nó `Manual Trigger`.
+- A execução depende de acionamento manual.
+- Não há gatilho de agendamento configurado no fluxo exportado.
+
+### Etapa 2 — Consulta de associados
+
+**FATO:**
+- O nó `HTTP Request1` realiza uma chamada HTTP para o endpoint `/associados`.
+- A URL contém o parâmetro `status=ativo`.
+- A autenticação utiliza uma chave de API inserida diretamente na URL.
+- O método HTTP não está explicitamente declarado no JSON exportado.
+
+**[A CONFIRMAR]:**
+- A API retorna uma lista de associados?
+- A consulta retorna todos os associados ativos ou existe algum limite de paginação?
+- Quais campos são retornados pela API?
+- O endpoint realiza algum filtro adicional?
+
+### Etapa 3 — Configuração de dados
+
+**FATO:**
+- O nó `dados` adiciona três campos:
+  - `db_user`
+  - `db_password`
+  - `conn`
+- Os campos contêm informações de acesso e conexão com um banco de dados.
+- A opção `includeOtherFields` está habilitada, preservando os demais campos de entrada.
+
+**Observação:** Não existe um nó de conexão ou operação de banco de dados conectado a essa etapa. Portanto, o uso efetivo dessas informações não é demonstrado.
+
+### Etapa 4 — Envio de registros
+
+**FATO:**
+- O nó `HTTP Request2` realiza uma chamada HTTP utilizando o método `POST`.
+- O destino é o endpoint `/registros`.
+- O corpo da requisição contém dois campos:
+
+| Campo de destino | Origem no fluxo |
+|---|---|
+| `associado` | `$json.nome` |
+| `valor` | `$json.valor` |
+
+**[A CONFIRMAR]:**
+- O endpoint efetivamente cadastra um novo registro?
+- O campo `valor` representa um valor monetário, uma pontuação ou outra informação?
+- Existe alguma validação de duplicidade?
+- Existe alguma validação de consistência antes do envio?
+
+### Etapa 5 — Finalização
+
+**FATO:**
+- O nó `fazer` adiciona o campo `x` com o valor fixo `ok`.
+- A opção `includeOtherFields` está habilitada.
+- Não há, na sequência apresentada, uma etapa específica de confirmação de gravação, auditoria ou notificação ao solicitante.
+
+**Observação:** O valor fixo `ok` não comprova, por si só, que o registro foi efetivamente persistido no sistema de destino.
+
+## 4. Regras de negócio
+
+As regras abaixo são somente aquelas que podem ser identificadas ou diretamente inferidas das configurações do fluxo.
+
+| ID | Regra identificada | Classificação |
+|---|---|---|
+| RN01 | A consulta utiliza o parâmetro `status=ativo`. | FATO |
+| RN02 | O envio ao endpoint `/registros` utiliza o campo `nome` como origem de `associado`. | FATO |
+| RN03 | O envio ao endpoint `/registros` utiliza o campo `valor` como origem de `valor`. | FATO |
+| RN04 | O fluxo é iniciado manualmente. | FATO |
+| RN05 | Os associados devem ser processados individualmente. | [A CONFIRMAR] |
+| RN06 | Cada associado deve possuir nome e valor válidos para ser enviado. | [A CONFIRMAR] |
+| RN07 | Não devem ser criados registros duplicados. | [A CONFIRMAR] |
+
+**Regras de negócio não identificáveis no fluxo:**
+- Critérios de elegibilidade além do parâmetro `status=ativo`.
+- Validação de campos obrigatórios.
+- Critérios para registros duplicados.
+- Regras para valores nulos, zerados ou negativos.
+- Critérios de atualização ou exclusão de registros existentes.
+- Regras de aprovação ou autorização.
+
+## 5. Exceções e tratamento
+
+**FATO:**
+
+Não foram identificados caminhos alternativos ou nós específicos destinados ao tratamento de exceções.
+
+Também não há etapas explícitas de:
+- Tratamento de falha na consulta.
+- Tratamento de falha no envio.
+- Retentativa de operações.
+- Notificação de erro.
+- Registro estruturado de falhas.
+- Tratamento de duplicidade.
+- Validação dos dados antes do envio.
+
+**Exceções que precisam ser avaliadas:**
+
+| Situação | Tratamento existente | Tratamento a confirmar |
+|---|---|---|
+| API de consulta indisponível | Não identificável no fluxo | Definir retentativa e comunicação de falha. |
+| Falha de autenticação | Não identificável no fluxo | Definir atualização de credenciais e notificação. |
+| Retorno sem campo `nome` | Não identificável no fluxo | Definir rejeição ou tratamento do registro. |
+| Retorno sem campo `valor` | Não identificável no fluxo | Definir rejeição ou tratamento do registro. |
+| API de destino indisponível | Não identificável no fluxo | Definir retentativa e fila de reprocessamento. |
+| Registro duplicado | Não identificável no fluxo | Definir chave de identificação e política de duplicidade. |
+| Falha parcial no processamento | Não identificável no fluxo | Definir como identificar e reprocessar somente os itens pendentes. |
+
+**[A CONFIRMAR]:** Verificar também se existem políticas globais de tratamento de erros configuradas na instância n8n, fora deste workflow.
+
+## 6. Sistemas, dados e LGPD
+
+### Sistemas identificados
+
+| Sistema | Utilização identificada |
+|---|---|
+| n8n | Orquestração do fluxo. |
+| API da cooperativa | Consulta de associados e recebimento de registros. |
+| Banco de dados `coop` | Informações de conexão declaradas no fluxo, mas sem operação de banco demonstrada. |
+
+### Dados identificados
+
+| Campo | Utilização | Classificação preliminar |
+|---|---|---|
+| `nome` | Enviado no campo `associado`. | Potencial dado pessoal, caso identifique uma pessoa natural. |
+| `valor` | Enviado no campo `valor`. | Pode ser dado pessoal quando associado a uma pessoa identificada ou identificável. |
+| `status` | Parâmetro utilizado na consulta. | Informação de situação cadastral. |
+| Chave de API | Autenticação da chamada HTTP. | Credencial de acesso — não é dado pessoal por si só. |
+| Usuário e senha do banco | Informações de conexão. | Credenciais de acesso — não são dados pessoais por si só. |
+
+**Dados pessoais identificáveis no fluxo:**
+- `nome`, caso corresponda ao nome de uma pessoa física.
+- `valor`, caso represente informação vinculada a um associado identificável.
+
+**Dados pessoais sensíveis:** Não identificáveis no fluxo.
+
+### Pontos de atenção relacionados à LGPD
+
+1. Não há identificação da finalidade legal do tratamento dos dados.
+2. Não há identificação da base legal utilizada.
+3. Não há identificação do controlador e do operador dos dados.
+4. Não há informações sobre retenção e descarte dos dados.
+5. Não há identificação dos controles de acesso às informações.
+6. Não há identificação de políticas de auditoria ou rastreabilidade.
+7. Não é possível determinar quais outros dados pessoais são retornados pela API de consulta.
+
+### Segurança das credenciais
+
+**FATO:** O JSON exportado contém uma chave de API na URL e credenciais de banco de dados armazenadas diretamente em um nó `Set`, em texto aberto.
+
+**Recomendação técnica:** Caso os valores sejam credenciais reais, devem ser tratados como expostos e revogados ou rotacionados. A automação deve utilizar o mecanismo de credenciais do n8n ou um gerenciador de segredos, evitando armazenar senhas e chaves diretamente no workflow.
+
+## 7. Volume e frequência
+
+| Indicador | Identificação |
+|---|---|
+| Frequência de execução | Acionamento manual. |
+| Agendamento automático | Não identificado no fluxo. |
+| Quantidade de associados por execução | Não identificável no fluxo. |
+| Quantidade de registros enviados | Não identificável no fluxo. |
+| Volume diário ou mensal | Não identificável no fluxo. |
+| Tempo médio de execução | Não identificável no fluxo. |
+| Horário de execução | Não identificável no fluxo. |
+| SLA operacional | Não identificável no fluxo. |
+| Período de maior demanda | Não identificável no fluxo. |
+
+**[A CONFIRMAR]:** A quantidade de registros processados depende do retorno da API de associados e da cardinalidade dos dados recebidos. O JSON não apresenta dados de execução que permitam calcular esse volume.
+
+## 8. Benefício esperado
+
+**[A CONFIRMAR] Benefícios qualitativos esperados:**
+
+- Redução de atividades manuais de consulta e transferência de informações.
+- Padronização do envio de registros entre sistemas.
+- Redução de erros operacionais decorrentes de lançamentos manuais.
+- Maior agilidade no processamento de informações dos associados.
+- Possibilidade de ampliar a capacidade de processamento sem aumentar proporcionalmente o esforço operacional.
+
+**Benefícios quantitativos:**
+
+Não identificáveis no fluxo.
+
+Para quantificá-los, será necessário obter:
+- Tempo médio atual para executar o processo manualmente.
+- Quantidade média de associados processados.
+- Frequência de execução.
+- Taxa atual de erros e retrabalho.
+- Tempo médio de execução da automação.
+
+---
+
+# SUPOSIÇÕES IDENTIFICADAS
+
+As seguintes interpretações foram utilizadas apenas como hipóteses para construir este rascunho:
+
+1. **Finalidade do processo:** Supõe-se que a automação tenha como finalidade consultar associados ativos e gerar registros em outro sistema.
+2. **Significado de `/registros`:** Supõe-se que o endpoint receba informações para criação de registros.
+3. **Campo `nome`:** Supõe-se que represente o nome do associado.
+4. **Campo `valor`:** Supõe-se que represente um valor associado ao registro, possivelmente monetário.
+5. **Área responsável:** Cadastro, operações ou relacionamento com associados são áreas possíveis, mas não confirmadas.
+6. **Unidade de processamento:** Supõe-se que os dados retornados pela consulta sejam utilizados para alimentar as requisições de envio. A estrutura e a cardinalidade do retorno precisam ser confirmadas.
+7. **Benefícios:** Redução de trabalho manual e de erros são benefícios esperados, não resultados comprovados.
+
+# PERGUNTAS AO DEMANDANTE PARA FECHAMENTO DO PDD
+
+### Identificação e objetivo
+1. Qual é o nome oficial do processo?
+2. Qual área é responsável pelo processo e qual é o seu responsável funcional?
+3. Qual problema operacional motivou a criação dessa automação?
+4. O objetivo é cadastrar, atualizar, sincronizar ou gerar registros de associados?
+
+### Regras de negócio
+5. O que define um associado elegível para processamento?
+6. O endpoint `/associados` retorna exclusivamente associados ativos?
+7. O que representa o campo `valor`? Qual unidade ou moeda é utilizada?
+8. Existem regras para valores nulos, zerados ou negativos?
+9. Como deve ser identificada a duplicidade de um registro?
+10. O processo deve ignorar, atualizar ou registrar novamente um associado já processado?
+
+### Exceções e controles
+11. O que deve acontecer quando a API de consulta estiver indisponível?
+12. O que deve acontecer quando o envio de um registro falhar?
+13. Existe retentativa automática ou reprocessamento manual?
+14. Como o responsável será informado sobre falhas e execuções concluídas?
+15. Qual condição determina que uma execução foi efetivamente concluída com sucesso?
+
+### Sistemas, segurança e LGPD
+16. O banco `coop` é utilizado em alguma etapa que não está representada neste workflow?
+17. Quais campos pessoais são retornados pela API?
+18. Qual é a finalidade e a base legal do tratamento dos dados?
+19. Quem é o controlador e quem são os operadores envolvidos?
+20. Por quanto tempo os dados são armazenados e quem pode acessá-los?
+21. As credenciais presentes no workflow são fictícias ou pertencem a ambientes reais?
+
+### Volume, frequência e benefícios
+22. Quantos associados são processados, em média, por execução?
+23. Qual é a frequência desejada: diária, semanal, mensal ou sob demanda?
+24. Existe um horário ou SLA para conclusão?
+25. Quanto tempo a equipe gasta atualmente para executar essa atividade?
+26. Qual indicador será utilizado para medir o benefício da automação?
+
+**Conclusão preliminar:** O fluxo demonstra uma integração sequencial entre dois endpoints HTTP, iniciada manualmente. Entretanto, ainda não há evidências suficientes para caracterizar integralmente as regras de negócio, os controles operacionais, o volume de processamento e os benefícios mensuráveis. O PDD deve ser validado com o demandante antes de ser considerado documento funcional aprovado.
